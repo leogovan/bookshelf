@@ -5,7 +5,7 @@ from flask_cors import CORS, cross_origin
 import random
 import sys
 
-from models import setup_db, Book
+from models import db, setup_db, Book
 
 #print("I am sys", sys.path)
 
@@ -37,7 +37,7 @@ def create_app(test_config=None):
   #         Response body keys: 'success', 'books' and 'total_books'
   # TEST: When completed, the webpage will display books including title, author, and rating shown as stars
 
-  @app.route('/books')
+  @app.route('/books', methods=['GET'])
   def get_books():
     page = request.args.get('page', 1, type=int)
     start = (page - 1) * 10
@@ -66,6 +66,7 @@ def create_app(test_config=None):
     
     try:
       book = Book.query.filter(Book.id==book_id).one_or_none()
+      print(book.format)
       if book is None:
         abort(404)
       
@@ -77,6 +78,7 @@ def create_app(test_config=None):
         
       
       # .update() method updates the book object which is the db record it's representing
+      # worth noting that this method is available as an object attribute against the class Book()
       book.update()
       print('rating for the book in the db after updating: ', book.rating)
 
@@ -87,6 +89,9 @@ def create_app(test_config=None):
     
     except:
       abort(400)
+    
+    finally:
+      db.session.close()
 
   # @TODO: Write a route that will delete a single book. 
   #        Response body keys: 'success', 'deleted'(id of deleted book), 'books' and 'total_books'
@@ -94,11 +99,72 @@ def create_app(test_config=None):
 
   # TEST: When completed, you will be able to delete a single book by clicking on the trashcan.
 
+  @app.route('/books/<int:book_id>', methods=['DELETE'])
+  def delete_book(book_id):
+    try:
+      book = Book.query.filter(Book.id==book_id).one_or_none()
+
+      if book is None:
+        abort(404)
+      else:
+        book.delete()
+        books = Book.query.order_by(Book.id).all()
+        page = request.args.get('page', 1, type=int)
+        start = (page - 1) * 10
+        end = start + BOOKS_PER_SHELF
+        formatted_books = [book.format() for book in books]
+      
+      return jsonify({
+        'success': True,
+        'deleted': book.id,
+        'books': formatted_books[start:end],
+        'total_books': len(formatted_books)
+        })   
+
+    except:
+      abort(400)
+    
+    finally:
+      db.session.close()
 
   # @TODO: Write a route that create a new book. 
   #        Response body keys: 'success', 'created'(id of created book), 'books' and 'total_books'
   # TEST: When completed, you will be able to a new book using the form. Try doing so from the last page of books. 
-  #       Your new book should show up immediately after you submit it at the end of the page. 
-  
+  #       Your new book should show up immediately after you submit it at the end of the page.
+
+  @app.route('/books', methods=['POST'])
+  def create_book():
+    body = request.get_json()
+
+    try:
+      book = Book(
+        title=body.get('title'),
+        author=body.get('author'),
+        rating=int(body.get('rating'))
+      )
+      
+      book.insert()
+      books = Book.query.order_by(Book.id).all()
+      page = request.args.get('page', 1, type=int)
+      start = (page - 1) * 10
+      end = start + BOOKS_PER_SHELF
+      formatted_books = [book.format() for book in books]
+
+      return jsonify({
+          'success': True,
+          'created': book.id,
+          'books': formatted_books[start:end],
+          'total_books': len(formatted_books)
+          })
+    
+    except:
+      abort(400)
+      db.session.rollback()
+      print(sys.exc_info())
+    
+    finally:
+      db.session.close()
+
+
   return app
 
