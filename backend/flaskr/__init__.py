@@ -27,7 +27,7 @@ def create_app(test_config=None):
   @app.after_request
   def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,PATCH, DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,PATCH,DELETE,OPTIONS')
     return response
 
   # @TODO: Write a route that retrivies all books, paginated. 
@@ -62,7 +62,7 @@ def create_app(test_config=None):
     # stores the incoming request as JSON (needs the request object otherwise == Nonetype)
     body = request.get_json()
     
-    print('body', body)
+    print('body.rating before: ', body['rating'])
     
     try:
       book = Book.query.filter(Book.id==book_id).one_or_none()
@@ -70,16 +70,19 @@ def create_app(test_config=None):
         abort(404)
       
       if 'rating' in body:
-        # .get() gets the value by a dictionary's key
+        print('rating for the book in the db before updating: ', book.rating)
+        # .get() gets the value by a dictionary's key i.e. getting the rating value out of the incoming rating request,
+        # and sets the value of the book object's rating
         book.rating = int(body.get('rating'))
-        print('body.rating before: ', body.rating)
+        
       
-      # .update()
-      #book.update()
+      # .update() method updates the book object which is the db record it's representing
+      book.update()
+      print('rating for the book in the db after updating: ', book.rating)
 
       return jsonify({
         'success': True,
-        'id': book_id
+        'id': book.id
         })
     
     except:
