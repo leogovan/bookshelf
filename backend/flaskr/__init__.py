@@ -27,7 +27,7 @@ def create_app(test_config=None):
   @app.after_request
   def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,PATCH, DELETE,OPTIONS')
     return response
 
   # @TODO: Write a route that retrivies all books, paginated. 
@@ -51,25 +51,39 @@ def create_app(test_config=None):
       'total_books': len(formatted_books)
       })
 
-  
-
   # @TODO: Write a route that will update a single book's rating. 
   #         It should only be able to update the rating, not the entire representation
   #         and should follow API design principles regarding method and route.  
   #         Response body keys: 'success'
   # TEST: When completed, you will be able to click on stars to update a book's rating and it will persist after refresh
 
-  @app.route('/books/<int:book_id>', methods=['GET'])
-  def change_rating(book_id):
+  @app.route('/books/<int:book_id>', methods=['PATCH'])
+  def update_book(book_id):
+    # stores the incoming request as JSON (needs the request object otherwise == Nonetype)
     body = request.get_json()
-    book = [Book.query.filter(Book.id==book_id).one_or_none()]
-    formatted_book = [i.format() for i in book]
-    book = formatted_book[0]
+    
+    print('body', body)
+    
+    try:
+      book = Book.query.filter(Book.id==book_id).one_or_none()
+      if book is None:
+        abort(404)
+      
+      if 'rating' in body:
+        # .get() gets the value by a dictionary's key
+        book.rating = int(body.get('rating'))
+        print('body.rating before: ', body.rating)
+      
+      # .update()
+      #book.update()
 
-    return jsonify({
-      'success': True,
-      'rating': book['rating']
-      })
+      return jsonify({
+        'success': True,
+        'id': book_id
+        })
+    
+    except:
+      abort(400)
 
   # @TODO: Write a route that will delete a single book. 
   #        Response body keys: 'success', 'deleted'(id of deleted book), 'books' and 'total_books'
